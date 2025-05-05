@@ -8,10 +8,9 @@ Bot Discord, który automatycznie monitoruje przedmioty na platformie Vinted wed
 - 💰 Filtrowanie wyników według zakresu cenowego
 - 🔄 Automatyczne sprawdzanie nowych przedmiotów w regularnych odstępach czasu
 - 🖼️ Wyświetlanie wielu zdjęć przedmiotu
-- 👤 Informacje o sprzedającym wraz z oceną i danymi z profilu
-- 🌐 Dane o kraju pochodzenia przedmiotu
-- 📊 Wyświetlanie szczegółowych informacji o przedmiocie w Discord embeds
-- 🎮 Prosty interfejs komend do konfiguracji
+- 👤 Informacje o sprzedającym (nazwa, zdjęcie profilowe)
+- 🌐 Dane o kraju pochodzenia przedmiotu (czasami działa a czasami nie)
+- 📊 Prosta konfihuracja
 
 ## Instrukcja Instalacji Lokalnej
 
@@ -26,7 +25,7 @@ Bot Discord, który automatycznie monitoruje przedmioty na platformie Vinted wed
 1. Sklonuj to repozytorium:
    ```
    git clone [https://github.com/01001010anek/vinted-scrapper](https://github.com/01001010anek/vinted-scrapper)
-   cd <NAZWA_FOLDERU>
+   cd vinted-scrapper
    ```
 
 2. Zainstaluj wymagane pakiety:
@@ -75,7 +74,7 @@ Bot Discord, który automatycznie monitoruje przedmioty na platformie Vinted wed
 
 - **Problem z połączeniem do Vinted**: Bot używa zaawansowanych technik, aby obejść zabezpieczenia anti-scraping, ale jeśli Vinted zmieni swoją strukturę, może być konieczna aktualizacja kodu
 - **Wolne wyszukiwanie**: Dodaliśmy opóźnienia między zapytaniami, aby uniknąć blokady przez Vinted
-- **Brak niektórych informacji**: Nie wszystkie dane są dostępne przez API Vinted, więc bot próbuje pobrać dodatkowe informacje bezpośrednio ze strony
+- **Brak niektórych informacji**
 
 ## Jak działa bot?
 
@@ -91,7 +90,3 @@ Bot wykorzystuje dwa podejścia do pozyskiwania danych:
 - Web scraping może przestać działać, jeśli struktura strony Vinted się zmieni
 - Vinted ma zabezpieczenia anti-scraping, które mogą blokować bota
 - Bot respektuje limity zapytań, dodając opóźnienia między nimi
-
-## Licencja
-
-Ten projekt jest dostępny na licencji MIT License.
