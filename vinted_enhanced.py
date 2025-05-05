@@ -277,100 +277,30 @@ class VintedEnhanced:
                 if opinion_elem:
                     ratings_elem = opinion_elem
                 
-            # Metoda 5: Szukanie elementu z określoną liczbą opinii
-            if not ratings_elem:
-                opinion_count_elem = soup.select_one('span, div') 
-                if opinion_count_elem and re.search(r'(\d+)\s*opinii', opinion_count_elem.text):
-                    ratings_elem = opinion_count_elem
-                    
-            # Parsowanie znalezionego elementu oceny
-            found_rating = False
+            # Pomijamy pobieranie ocen użytkownika - zgodnie z wymaganiami
+            # Zachowujemy tylko informacje o lokalizacji
             
-            # Najpierw spróbujmy znaleźć ocenę bezpośrednio w HTML
-            # Jeśli znaleźliśmy jakikolwiek element z oceną
+            # Sprawdzamy tylko, czy znaleziono element z informacjami
             if ratings_elem:
                 logger.info(f"Znaleziono potencjalny element z ocenami: {ratings_elem.text.strip()}")
                 
-                # Metoda 1: Szukamy tekstu w formacie "x,xx (xxx opinii)" lub podobnym
-                rating_match = re.search(r'([\d,\.]+)\s*\((\d+)', ratings_elem.text.strip())
+                # Szukamy tylko ilości opinii do logów, ale nie zapisujemy oceny
+                opinion_count_match = re.search(r'(\d+)\s*opini', ratings_elem.text.strip())
+                if opinion_count_match:
+                    opinions_count = opinion_count_match.group(1)
+                    logger.info(f"Znaleziono {opinions_count} opinii")
                 
-                if rating_match:
-                    user_data['rating'] = rating_match.group(1).replace(',', '.')
-                    total_opinions = int(rating_match.group(2))
-                    
-                    # Dodaj dodatkowe informacje do logów
-                    logger.info(f"Znaleziono ocenę w formacie standardowym: {user_data['rating']} ({total_opinions} opinii)")
-                    found_rating = True
-                    
-                    # Szacowanie pozytywnych/negatywnych/neutralnych ocen na podstawie ogólnej oceny
-                    try:
-                        rating = float(user_data['rating'])
-                        if rating > 0:
-                            # Prosta heurystyka dla podziału ocen
-                            positive_ratio = min(1.0, rating / 5.0)
-                            negative_ratio = max(0, (1.0 - positive_ratio) * 0.7)
-                            neutral_ratio = max(0, (1.0 - positive_ratio) * 0.3)
-                            
-                            user_data['positive_feedback_count'] = int(total_opinions * positive_ratio)
-                            user_data['negative_feedback_count'] = int(total_opinions * negative_ratio)
-                            user_data['neutral_feedback_count'] = total_opinions - user_data['positive_feedback_count'] - user_data['negative_feedback_count']
-                    except (ValueError, TypeError):
-                        logger.info(f"Nie udało się przetworzyć oceny jako liczby: {user_data['rating']}")
-                
-                # Metoda 2: Szukanie liczby opinii z osobną oceną
-                if not found_rating:
-                    # Próbujemy znaleźć liczbę opinii
-                    opinions_match = re.search(r'(\d+)\s*opini', ratings_elem.text)
-                    if opinions_match:
-                        total_opinions = int(opinions_match.group(1))
-                        logger.info(f"Znaleziono {total_opinions} opinii")
-                        
-                        # Teraz szukamy oceny (typu 4.5, 5.0 itp.)
-                        rating_number = re.search(r'(\d+[,.]\d+)|\b(\d)[,.]\b', ratings_elem.text)
-                        if rating_number:
-                            rating_str = rating_number.group(1) or rating_number.group(2)
-                            user_data['rating'] = rating_str.replace(',', '.')
-                            logger.info(f"Znaleziono ocenę: {user_data['rating']}")
-                            found_rating = True
-                            
-                            # Obliczmy pozytywne/negatywne na podstawie oceny
-                            try:
-                                rating = float(user_data['rating'])
-                                positive_ratio = min(1.0, rating / 5.0)
-                                user_data['positive_feedback_count'] = int(total_opinions * positive_ratio)
-                                user_data['negative_feedback_count'] = int(total_opinions * (1-positive_ratio))
-                            except (ValueError, TypeError):
-                                user_data['positive_feedback_count'] = total_opinions
-                                user_data['negative_feedback_count'] = 0
-                
-                # Metoda 3: Jeśli nadal nie mamy oceny, spróbujmy znaleźć jakiekolwiek liczby
-                if not found_rating:
-                    # Znajdź wszystkie liczby z przecinkami lub kropkami
-                    numbers = re.findall(r'(\d+[.,]\d+)|\b(\d)[.,]\b', ratings_elem.text)
-                    if numbers:
-                        for number in numbers:
-                            number_str = number[0] or number[1]
-                            if number_str:
-                                user_data['rating'] = number_str.replace(',', '.')
-                                logger.info(f"Znaleziono potencjalną ocenę: {user_data['rating']}")
-                                found_rating = True
-                                break
+                # Tutaj nie przypisujemy żadnych wartości związanych z ocenami do user_data
+                # user_data['rating'] pozostaje None
+                # Nie potrzebujemy już szukać ani przypisywać ocen 
+                # Zostawiamy tylko logowanie liczby opinii do celów diagnostycznych
+                opinions_match = re.search(r'(\d+)\s*opini', ratings_elem.text)
+                if opinions_match:
+                    total_opinions = int(opinions_match.group(1))
+                    logger.info(f"Znaleziono {total_opinions} opinii")
             
-            # Jeśli wciąż nie mamy oceny, sprawdźmy bezpośrednio na stronie
-            if not found_rating:
-                # Szukamy elementu, który wygląda na ocenę
-                for elem in soup.select('span, div, p'):
-                    if re.search(r'(\d+[,.]\d+)[^\d]*$', elem.text.strip()):
-                        user_data['rating'] = re.search(r'(\d+[,.]\d+)', elem.text.strip()).group(1).replace(',', '.')
-                        logger.info(f"Znaleziono samodzielną ocenę: {user_data['rating']}")
-                        found_rating = True
-                        break
-            
-            # Jeśli mamy ocenę, ale nie mamy informacji o opiniach, dodajmy domyślne wartości
-            if found_rating and not user_data.get('positive_feedback_count'):
-                user_data['positive_feedback_count'] = 1
-                user_data['negative_feedback_count'] = 0
-                user_data['neutral_feedback_count'] = 0
+            # Usuwamy wszystkie pozostałe metody szukania ocen
+            # Nie potrzebujemy już tych informacji zgodnie z wymaganiami
             
             # Liczba przedmiotów
             items_elem = soup.select_one('span.Text_text__wF6fh:contains("przedmiot")')
