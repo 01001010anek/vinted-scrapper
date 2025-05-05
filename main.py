@@ -215,14 +215,46 @@ async def check_new_items(channel):
                     
                     # Dodaj informacje o sprzedawcy wraz z dodatkowym opisem
                     if hasattr(item, 'user') and item.user:
-                        # Użyj informacji o kraju z danych użytkownika
-                        country_flag = "🇵🇱"  # Domyślna flaga Polski
-                        country_name = "Polska"  # Domyślna nazwa kraju
+                        # Używamy informacji o kraju z danych użytkownika
+                        country_flag = "🏳️"  # Domyślna neutralna flaga
+                        country_name = "Nieznany"  # Domyślna nazwa kraju
                         
+                        # Określamy kraj na podstawie dostępnej informacji
                         if hasattr(item.user, 'country') and item.user.country:
                             country_name = item.user.country
+                            
+                            # Przypisanie kodu kraju na podstawie nazwy jeśli nie jest określony
+                            country_code_map = {
+                                'Polska': 'PL',
+                                'Niemcy': 'DE',
+                                'Francja': 'FR',
+                                'Wielka Brytania': 'GB',
+                                'Hiszpania': 'ES',
+                                'Włochy': 'IT',
+                                'Czechy': 'CZ',
+                                'Słowacja': 'SK',
+                                'Węgry': 'HU',
+                                'Austria': 'AT',
+                                'Holandia': 'NL',
+                                'Belgia': 'BE',
+                                'Dania': 'DK',
+                                'Szwecja': 'SE',
+                                'Norwegia': 'NO',
+                                'Finlandia': 'FI',
+                                'Grecja': 'GR',
+                                'Rumunia': 'RO',
+                                'Litwa': 'LT'
+                            }
+                            
+                            # Jeśli kod kraju nie jest bezpośrednio dostępny, spróbuj go wygenerować z nazwy
+                            if (not hasattr(item.user, 'country_code') or not item.user.country_code) and country_name in country_code_map:
+                                item.user.country_code = country_code_map[country_name]
+                                
+                            # Jeśli nadal nie ma kodu, użyj dwóch pierwszych liter nazwy kraju
+                            if (not hasattr(item.user, 'country_code') or not item.user.country_code) and len(country_name) >= 2:
+                                item.user.country_code = country_name[:2].upper()
                         
-                        # Jeśli mamy kod kraju, użyj go do stworzenia emoji flagi
+                        # Teraz używamy kodu kraju do stworzenia emoji flagi
                         if hasattr(item.user, 'country_code') and item.user.country_code:
                             country_code = str(item.user.country_code).upper()
                             # Konwertuj kod kraju na emoji flagi (np. PL -> 🇵🇱)
@@ -230,6 +262,8 @@ async def check_new_items(channel):
                                 # Każda litera kodu kraju jest przesunięta o 127397 w Unicode, aby uzyskać emoji flagi
                                 flag_code_points = [ord(c) + 127397 for c in country_code]
                                 country_flag = "".join([chr(cp) for cp in flag_code_points])
+                        elif country_name == "Polska":
+                            country_flag = "🇵🇱"
                         
                         embed.add_field(name="Kraj", value=f"{country_flag} {country_name}", inline=True)
                         
@@ -238,8 +272,14 @@ async def check_new_items(channel):
                         
                         # Sprawdź, czy mamy ocenę użytkownika
                         if hasattr(item.user, 'rating') and item.user.rating:
-                            rating_stars = "★" * int(float(item.user.rating))
-                            rating_text = f"⭐ Ocena: {item.user.rating} {rating_stars}"
+                            try:
+                                # Konwertuj rating na liczbę i wyświetl gwiazdki
+                                rating_value = float(str(item.user.rating).replace(',', '.'))
+                                rating_stars = "★" * int(rating_value)
+                                rating_text = f"⭐ Ocena: {rating_value} {rating_stars}"
+                            except (ValueError, TypeError):
+                                # Jeśli konwersja się nie powiedzie, wyświetl oryginalny tekst
+                                rating_text = f"⭐ Ocena: {item.user.rating}"
                         
                         # Dodaj informacje o liczbie pozytywnych/negatywnych opinii, jeśli są dostępne
                         feedback_info = []
@@ -274,7 +314,12 @@ async def check_new_items(channel):
                                 flag_code_points = [ord(c) + 127397 for c in country_code]
                                 country_flag = "".join([chr(cp) for cp in flag_code_points])
                             
-                            country_name = getattr(item, 'country_title', "Polska") or "Polska"
+                            # Pobierz właściwą nazwę kraju z obiektu
+                            if hasattr(item, 'country') and item.country:
+                                country_name = item.country
+                            else:
+                                country_name = getattr(item, 'country_title', "Polska") or "Polska"
+                                
                             embed.add_field(name="Kraj", value=f"{country_flag} {country_name}", inline=True)
                     
                     # Dodaj informacje o stanie przedmiotu

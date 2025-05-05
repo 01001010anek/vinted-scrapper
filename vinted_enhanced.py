@@ -10,6 +10,40 @@ from typing import Dict, Optional, Tuple, Any
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('vinted_enhanced')
 
+def get_country_codes() -> Dict[str, str]:
+    """
+    Zwraca słownik mapowania nazw krajów na kody krajów używane na Vinted
+    """
+    return {
+        'Polska': 'PL',
+        'Niemcy': 'DE',
+        'Francja': 'FR',
+        'Wielka Brytania': 'GB',
+        'Hiszpania': 'ES',
+        'Włochy': 'IT',
+        'Czechy': 'CZ',
+        'Słowacja': 'SK',
+        'Węgry': 'HU',
+        'Austria': 'AT',
+        'Holandia': 'NL',
+        'Belgia': 'BE',
+        'Dania': 'DK',
+        'Szwecja': 'SE',
+        'Norwegia': 'NO',
+        'Finlandia': 'FI',
+        'Grecja': 'GR',
+        'Rumunia': 'RO',
+        'Litwa': 'LT',
+        'Łotwa': 'LV',
+        'Estonia': 'EE',
+        'Bułgaria': 'BG',
+        'Portugalia': 'PT',
+        'Irlandia': 'IE',
+        'Chorwacja': 'HR',
+        'Słowenia': 'SI',
+        'Szwajcaria': 'CH'
+    }
+
 class VintedEnhanced:
     """
     Rozszerzenie do pobierania dodatkowych informacji z Vinted, 
@@ -138,12 +172,29 @@ class VintedEnhanced:
             if not location_elem:
                 location_elem = soup.select_one('.user-location') or soup.select_one('[data-testid="user-location"]')
                 
-            # Metoda 3: Szukanie informacji o lokalizacji po wzorcu "Miasto, Kraj"
+            # Metoda 3: Sprawdź sekcję "O mnie", która często zawiera informacje o kraju
+            if not location_elem:
+                about_me_elem = soup.select_one('div:contains("O mnie:")') or soup.select_one('p:contains("O mnie:")')
+                if about_me_elem:
+                    location_elem = about_me_elem
+                    logger.info("Znaleziono element 'O mnie', próba wyodrębnienia lokalizacji")
+            
+            # Metoda 4: Szukanie informacji o lokalizacji po wzorcu "Miasto, Kraj"
             if not location_elem:
                 for elem in soup.select('div, span, p'):
                     if re.search(r'[A-Z][a-ząćęłńóśźż]+,\s+[A-Z][a-ząćęłńóśźż]+', elem.text):
                         location_elem = elem
                         break
+                        
+            # Metoda 5: Szukanie samej nazwy kraju w elemencie "O mnie"
+            if not location_elem:
+                for elem in soup.select('div, span, p'):
+                    for country_name in get_country_codes().keys():
+                        if country_name in elem.text:
+                            user_data['country'] = country_name
+                            user_data['country_code'] = get_country_codes()[country_name]
+                            logger.info(f"Znaleziono kraj na podstawie nazwy: {country_name} ({user_data['country_code']})")
+                            return user_data
                         
             if location_elem:
                 logger.info(f"Znaleziono element z lokalizacją: {location_elem.text.strip()}")
@@ -180,50 +231,24 @@ class VintedEnhanced:
                     user_data['country'] = location_parts[-1]
                     
                     # Przypisz kod kraju na podstawie nazwy
-                    country_codes = {
-                        'Polska': 'PL',
-                        'Niemcy': 'DE',
-                        'Francja': 'FR',
-                        'Wielka Brytania': 'GB',
-                        'Hiszpania': 'ES',
-                        'Włochy': 'IT',
-                        'Czechy': 'CZ',
-                        'Słowacja': 'SK',
-                        'Węgry': 'HU',
-                        'Austria': 'AT',
-                        'Holandia': 'NL',
-                        'Belgia': 'BE',
-                        'Dania': 'DK',
-                        'Szwecja': 'SE',
-                        'Norwegia': 'NO',
-                        'Finlandia': 'FI',
-                        'Grecja': 'GR'
-                    }
+                    country_codes = get_country_codes()
                     user_data['country_code'] = country_codes.get(location_parts[-1], 'PL')
+                    
+                    # Dodajmy jawnie kraj
+                    if location_parts[-1] not in country_codes and location_parts[-1] != 'Polska':
+                        logger.info(f"Nieznany kraj: {location_parts[-1]}, dodaję do listy")
+                        user_data['country_code'] = location_parts[-1][:2].upper()
                     logger.info(f"Przypisano kod kraju: {user_data['country_code']}")
                 # Jeśli znaleziono tylko jeden element, to domyślnie jest to kraj
                 elif len(location_parts) == 1:
                     user_data['country'] = location_parts[0]
-                    country_codes = {
-                        'Polska': 'PL',
-                        'Niemcy': 'DE',
-                        'Francja': 'FR',
-                        'Wielka Brytania': 'GB',
-                        'Hiszpania': 'ES',
-                        'Włochy': 'IT',
-                        'Czechy': 'CZ',
-                        'Słowacja': 'SK',
-                        'Węgry': 'HU',
-                        'Austria': 'AT',
-                        'Holandia': 'NL',
-                        'Belgia': 'BE',
-                        'Dania': 'DK',
-                        'Szwecja': 'SE',
-                        'Norwegia': 'NO',
-                        'Finlandia': 'FI',
-                        'Grecja': 'GR'
-                    }
+                    country_codes = get_country_codes()
                     user_data['country_code'] = country_codes.get(location_parts[0], 'PL')
+                    
+                    # Dodajmy jawnie kraj
+                    if location_parts[0] not in country_codes and location_parts[0] != 'Polska':
+                        logger.info(f"Nieznany kraj (tylko kraj): {location_parts[0]}, dodaję do listy")
+                        user_data['country_code'] = location_parts[0][:2].upper()
                     logger.info(f"Przypisano kod kraju (tylko kraj): {user_data['country_code']}")
             else:
                 # Jeśli nie znaleziono informacji o lokalizacji, ustaw domyślne wartości
@@ -231,7 +256,7 @@ class VintedEnhanced:
                 user_data['country_code'] = "PL"
                 logger.info("Nie znaleziono informacji o lokalizacji, użyto domyślnych")
             
-            # Oceny i opinie - kilka metod pobierania, aby zwiększyć szansę
+            # Oceny i opinie - nowa strategie wyszukiwania
             # Metoda 1: Bezpośrednie wyszukiwanie pola oceny
             ratings_elem = soup.select_one('div.details-list__item:contains("ocena")') or soup.select_one('div:contains("ocena")')
             
@@ -239,48 +264,113 @@ class VintedEnhanced:
             if not ratings_elem:
                 ratings_elem = soup.select_one('.user-rating') or soup.select_one('[data-testid="user-rating"]')
                 
-            # Metoda 3: Szukanie tekstów ocen w całym dokumencie
+            # Metoda 3: Szukanie sekcji opinii (może zawierać "5.0", itp)
             if not ratings_elem:
                 for elem in soup.select('div, span, p'):
-                    if 'ocena' in elem.text.lower() and re.search(r'[\d,]+\s+\(\d+', elem.text):
+                    if ('opini' in elem.text.lower() or 'ocen' in elem.text.lower()) and re.search(r'[\d,.]+', elem.text):
                         ratings_elem = elem
                         break
-                        
+            
+            # Metoda 4: Szukanie bloku z opinią
+            if not ratings_elem:
+                opinion_elem = soup.select_one('div:contains("opinii")') or soup.select_one('span:contains("opinii")')
+                if opinion_elem:
+                    ratings_elem = opinion_elem
+                
+            # Metoda 5: Szukanie elementu z określoną liczbą opinii
+            if not ratings_elem:
+                opinion_count_elem = soup.select_one('span, div') 
+                if opinion_count_elem and re.search(r'(\d+)\s*opinii', opinion_count_elem.text):
+                    ratings_elem = opinion_count_elem
+                    
             # Parsowanie znalezionego elementu oceny
+            found_rating = False
+            
+            # Najpierw spróbujmy znaleźć ocenę bezpośrednio w HTML
+            # Jeśli znaleźliśmy jakikolwiek element z oceną
             if ratings_elem:
-                logger.info(f"Znaleziono element z ocenami: {ratings_elem.text.strip()}")
-                # Szukamy tekstu w formacie "x,xx (xxx opinii)"
+                logger.info(f"Znaleziono potencjalny element z ocenami: {ratings_elem.text.strip()}")
+                
+                # Metoda 1: Szukamy tekstu w formacie "x,xx (xxx opinii)" lub podobnym
                 rating_match = re.search(r'([\d,\.]+)\s*\((\d+)', ratings_elem.text.strip())
+                
                 if rating_match:
                     user_data['rating'] = rating_match.group(1).replace(',', '.')
                     total_opinions = int(rating_match.group(2))
                     
                     # Dodaj dodatkowe informacje do logów
-                    logger.info(f"Znaleziono ocenę: {user_data['rating']} ({total_opinions} opinii)")
+                    logger.info(f"Znaleziono ocenę w formacie standardowym: {user_data['rating']} ({total_opinions} opinii)")
+                    found_rating = True
                     
                     # Szacowanie pozytywnych/negatywnych/neutralnych ocen na podstawie ogólnej oceny
-                    rating = float(user_data['rating'])
-                    if rating > 0:
-                        # Prosta heurystyka dla podziału ocen
-                        positive_ratio = min(1.0, rating / 5.0)
-                        negative_ratio = max(0, (1.0 - positive_ratio) * 0.7)
-                        neutral_ratio = max(0, (1.0 - positive_ratio) * 0.3)
-                        
-                        user_data['positive_feedback_count'] = int(total_opinions * positive_ratio)
-                        user_data['negative_feedback_count'] = int(total_opinions * negative_ratio)
-                        user_data['neutral_feedback_count'] = total_opinions - user_data['positive_feedback_count'] - user_data['negative_feedback_count']
-                else:
-                    # Fallback: Jeśli nie znaleźliśmy dokładnego formatu, wyszukaj jakiekolwiek liczby
-                    if not user_data['rating']:
-                        numbers = re.findall(r'[\d,\.]+', ratings_elem.text)
-                        if numbers:
-                            user_data['rating'] = numbers[0].replace(',', '.')
-                            logger.info(f"Znaleziono ocenę (format alternatywny): {user_data['rating']}")
+                    try:
+                        rating = float(user_data['rating'])
+                        if rating > 0:
+                            # Prosta heurystyka dla podziału ocen
+                            positive_ratio = min(1.0, rating / 5.0)
+                            negative_ratio = max(0, (1.0 - positive_ratio) * 0.7)
+                            neutral_ratio = max(0, (1.0 - positive_ratio) * 0.3)
                             
-                            # Ustaw domyślne wartości dla opinii
-                            user_data['positive_feedback_count'] = 1
-                            user_data['negative_feedback_count'] = 0
-                            user_data['neutral_feedback_count'] = 0
+                            user_data['positive_feedback_count'] = int(total_opinions * positive_ratio)
+                            user_data['negative_feedback_count'] = int(total_opinions * negative_ratio)
+                            user_data['neutral_feedback_count'] = total_opinions - user_data['positive_feedback_count'] - user_data['negative_feedback_count']
+                    except (ValueError, TypeError):
+                        logger.info(f"Nie udało się przetworzyć oceny jako liczby: {user_data['rating']}")
+                
+                # Metoda 2: Szukanie liczby opinii z osobną oceną
+                if not found_rating:
+                    # Próbujemy znaleźć liczbę opinii
+                    opinions_match = re.search(r'(\d+)\s*opini', ratings_elem.text)
+                    if opinions_match:
+                        total_opinions = int(opinions_match.group(1))
+                        logger.info(f"Znaleziono {total_opinions} opinii")
+                        
+                        # Teraz szukamy oceny (typu 4.5, 5.0 itp.)
+                        rating_number = re.search(r'(\d+[,.]\d+)|\b(\d)[,.]\b', ratings_elem.text)
+                        if rating_number:
+                            rating_str = rating_number.group(1) or rating_number.group(2)
+                            user_data['rating'] = rating_str.replace(',', '.')
+                            logger.info(f"Znaleziono ocenę: {user_data['rating']}")
+                            found_rating = True
+                            
+                            # Obliczmy pozytywne/negatywne na podstawie oceny
+                            try:
+                                rating = float(user_data['rating'])
+                                positive_ratio = min(1.0, rating / 5.0)
+                                user_data['positive_feedback_count'] = int(total_opinions * positive_ratio)
+                                user_data['negative_feedback_count'] = int(total_opinions * (1-positive_ratio))
+                            except (ValueError, TypeError):
+                                user_data['positive_feedback_count'] = total_opinions
+                                user_data['negative_feedback_count'] = 0
+                
+                # Metoda 3: Jeśli nadal nie mamy oceny, spróbujmy znaleźć jakiekolwiek liczby
+                if not found_rating:
+                    # Znajdź wszystkie liczby z przecinkami lub kropkami
+                    numbers = re.findall(r'(\d+[.,]\d+)|\b(\d)[.,]\b', ratings_elem.text)
+                    if numbers:
+                        for number in numbers:
+                            number_str = number[0] or number[1]
+                            if number_str:
+                                user_data['rating'] = number_str.replace(',', '.')
+                                logger.info(f"Znaleziono potencjalną ocenę: {user_data['rating']}")
+                                found_rating = True
+                                break
+            
+            # Jeśli wciąż nie mamy oceny, sprawdźmy bezpośrednio na stronie
+            if not found_rating:
+                # Szukamy elementu, który wygląda na ocenę
+                for elem in soup.select('span, div, p'):
+                    if re.search(r'(\d+[,.]\d+)[^\d]*$', elem.text.strip()):
+                        user_data['rating'] = re.search(r'(\d+[,.]\d+)', elem.text.strip()).group(1).replace(',', '.')
+                        logger.info(f"Znaleziono samodzielną ocenę: {user_data['rating']}")
+                        found_rating = True
+                        break
+            
+            # Jeśli mamy ocenę, ale nie mamy informacji o opiniach, dodajmy domyślne wartości
+            if found_rating and not user_data.get('positive_feedback_count'):
+                user_data['positive_feedback_count'] = 1
+                user_data['negative_feedback_count'] = 0
+                user_data['neutral_feedback_count'] = 0
             
             # Liczba przedmiotów
             items_elem = soup.select_one('span.Text_text__wF6fh:contains("przedmiot")')
@@ -416,51 +506,20 @@ class VintedEnhanced:
                     item_data['country'] = country
                     
                     # Przypisz kod kraju na podstawie nazwy
-                    country_codes = {
-                        'Polska': 'PL',
-                        'Niemcy': 'DE',
-                        'Francja': 'FR',
-                        'Wielka Brytania': 'GB',
-                        'Hiszpania': 'ES',
-                        'Włochy': 'IT',
-                        'Czechy': 'CZ',
-                        'Słowacja': 'SK',
-                        'Węgry': 'HU',
-                        'Austria': 'AT',
-                        'Holandia': 'NL',
-                        'Belgia': 'BE',
-                        'Dania': 'DK',
-                        'Szwecja': 'SE',
-                        'Norwegia': 'NO',
-                        'Finlandia': 'FI',
-                        'Grecja': 'GR'
-                    }
+                    country_codes = get_country_codes()
                     item_data['country_code'] = country_codes.get(country, 'PL')
                     logger.info(f"Ustawiono kraj przedmiotu: {item_data['country']} ({item_data['country_code']})")
                 elif len(location_parts) == 1:
                     # Jeśli znaleziono tylko jeden element (sam kraj)
                     country = location_parts[0].strip()
                     item_data['country'] = country
-                    country_codes = {
-                        'Polska': 'PL',
-                        'Niemcy': 'DE',
-                        'Francja': 'FR',
-                        'Wielka Brytania': 'GB',
-                        'Hiszpania': 'ES',
-                        'Włochy': 'IT',
-                        'Czechy': 'CZ',
-                        'Słowacja': 'SK',
-                        'Węgry': 'HU',
-                        'Austria': 'AT',
-                        'Holandia': 'NL',
-                        'Belgia': 'BE',
-                        'Dania': 'DK',
-                        'Szwecja': 'SE',
-                        'Norwegia': 'NO',
-                        'Finlandia': 'FI',
-                        'Grecja': 'GR'
-                    }
+                    country_codes = get_country_codes()
                     item_data['country_code'] = country_codes.get(country, 'PL')
+                    
+                    # Obsługa niezdefiniowanych krajów
+                    if country not in country_codes and country != 'Polska':
+                        logger.info(f"Nieznany kraj przedmiotu: {country}, dodaję do listy")
+                        item_data['country_code'] = country[:2].upper() if len(country) >= 2 else 'XX'
                     logger.info(f"Ustawiono kraj przedmiotu (tylko kraj): {item_data['country']} ({item_data['country_code']})")
             else:
                 # Jeśli nie znaleziono informacji o lokalizacji, ustaw domyślne wartości

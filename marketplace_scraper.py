@@ -33,6 +33,11 @@ class MarketplaceItem:
     image_url: Optional[str] = None
     brand_title: Optional[str] = None
     user: Optional[User] = None
+    country: Optional[str] = None
+    country_code: Optional[str] = None
+    country_title: Optional[str] = None
+    size_title: Optional[str] = None
+    photos: Optional[list] = None
 
 class MarketplaceScraper:
     """
