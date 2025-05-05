@@ -25,7 +25,7 @@ Bot Discord, który automatycznie monitoruje przedmioty na platformie Vinted wed
 
 1. Sklonuj to repozytorium:
    ```
-   git clone <URL_REPOZYTORIUM>
+   git clone [https://github.com/01001010anek/vinted-scrapper](https://github.com/01001010anek/vinted-scrapper)
    cd <NAZWA_FOLDERU>
    ```
 
