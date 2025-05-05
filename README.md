@@ -1,6 +1,6 @@
 # Bot Discord do scrapowania vinteda
 
-Bot Discord, który automatycznie monitoruje przedmioty na platformie Vinted według określonych kryteriów i wysyła powiadomienia na kanał Discord.
+Bot, który automatycznie monitoruje przedmioty na platformie Vinted według określonych kryteriów i wysyła powiadomienia na kanał Discord.
 
 ## Funkcje
 
