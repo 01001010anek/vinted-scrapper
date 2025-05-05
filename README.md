@@ -59,7 +59,6 @@ Bot Discord, który automatycznie monitoruje przedmioty na platformie Vinted wed
    - Zakres (Scopes): `bot`
    - Uprawnienia bota: `Send Messages`, `Embed Links`, `Read Message History`, `Use Embedded Activities`
 6. Użyj wygenerowanego URL, aby zaprosić bota na swój serwer
-7. Znajdź ID kanału, na którym ma działać bot (Włącz tryb dewelopera w Discordzie, kliknij prawym przyciskiem myszy na kanał i wybierz "Kopiuj ID")
 
 ## Komendy
 
