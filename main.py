@@ -30,6 +30,7 @@ client = discord.Client(intents=intents)
 
 # Create storage for sent items and search parameters
 sent_items = set()
+active_channels = {}  # Lista aktywnych kanałów, gdzie bot został uruchomiony
 search_config = {
     "keyword": "iphone",  # Domyślne słowo kluczowe (można zmienić przez komendę)
     "max_price": 100,
@@ -71,14 +72,19 @@ async def on_ready():
     logger.info(f'✅ Bot logged in as {client.user}')
     
     try:
+        # Sprawdzamy czy jest ustawiony domyślny kanał
         channel = client.get_channel(CHANNEL_ID)
-        if not channel:
-            logger.error(f"Nie można znaleźć kanału o ID {CHANNEL_ID}")
-            return
+        if channel:
+            # Dodajemy domyślny kanał do listy aktywnych kanałów
+            active_channels[CHANNEL_ID] = channel
+            logger.info(f"Połączono z domyślnym kanałem: {channel.name}")
+            await channel.send("🤖 Bot Vinted jest online! Wpisz `!help` aby zobaczyć dostępne komendy.")
             
-        logger.info(f"Połączono z kanałem: {channel.name}")
-        await channel.send("🤖 Bot Vinted jest online! Wpisz `!help` aby zobaczyć dostępne komendy.")
-        await check_new_items(channel)
+            # Uruchamiamy sprawdzanie nowych przedmiotów na domyślnym kanale
+            client.loop.create_task(check_new_items(channel))
+        else:
+            logger.info("Nie ustawiono domyślnego kanału. Bot będzie nasłuchiwał na wszystkich kanałach.")
+            logger.info("Aby aktywować bota, użyj komendy !set_keyword na dowolnym kanale.")
     except Exception as e:
         logger.error(f"Error in on_ready: {e}")
 
@@ -87,11 +93,12 @@ async def on_message(message):
     """
     Event handler for incoming messages
     """
-    if message.author == client.user or message.channel.id != CHANNEL_ID:
+    if message.author == client.user:
         return
     
     try:
         content = message.content.strip()
+        channel_id = message.channel.id
         
         # Command: !help
         if content.startswith("!help"):
@@ -103,6 +110,13 @@ async def on_message(message):
             if keyword:
                 search_config["keyword"] = keyword
                 await message.channel.send(f"🔑 Słowo kluczowe ustawiono na: **{keyword}**")
+                
+                # Dodaj kanał do aktywnych kanałów, jeśli jeszcze nie istnieje
+                if channel_id not in active_channels:
+                    active_channels[channel_id] = message.channel
+                    # Rozpocznij sprawdzanie nowych przedmiotów dla tego kanału
+                    client.loop.create_task(check_new_items(message.channel))
+                    await message.channel.send("✅ Bot został aktywowany na tym kanale i będzie wysyłał powiadomienia.")
             else:
                 await message.channel.send("❌ Podaj prawidłowe słowo kluczowe.")
                 
@@ -325,10 +339,10 @@ async def check_new_items(channel):
                             main_image_url = first_photo
                             embed.set_image(url=main_image_url)
                     
-                    # Wyślij główny embed
-                    await channel.send(embed=embed)
+                    # Tworzenie wszystkich wiadomości razem
+                    embeds_to_send = [embed]  # Zaczynamy od głównego embeda
                     
-                    # Wyślij dodatkowe zdjęcia jako osobne embedy (maksymalnie 5 zdjęć)
+                    # Dodaj dodatkowe zdjęcia jako kolejne embedy (maksymalnie 5 zdjęć)
                     additional_photos = []
                     if hasattr(item, "photos") and item.photos and len(item.photos) > 1:
                         # Pomiń pierwsze zdjęcie, bo już zostało użyte jako główne
@@ -336,14 +350,16 @@ async def check_new_items(channel):
                             if isinstance(photo_url, str) and photo_url.startswith("http"):
                                 additional_photos.append(photo_url)
                     
-                    # Jeśli mamy dodatkowe zdjęcia, wyślij je jako osobne embedy
+                    # Tworzymy dodatkowe embedy dla każdego zdjęcia
                     for i, photo_url in enumerate(additional_photos):
                         photo_embed = discord.Embed()
                         photo_embed.set_image(url=photo_url)
                         photo_embed.set_footer(text=f"Zdjęcie {i+2}/{len(additional_photos)+1} | ID: {item.id}")
-                        await channel.send(embed=photo_embed)
-                        # Krótka pauza aby uniknąć limitowania przez Discord
-                        await asyncio.sleep(0.5)
+                        embeds_to_send.append(photo_embed)
+                    
+                    # Wyślij wszystkie embedy w jednej wiadomości
+                    if embeds_to_send:
+                        await channel.send(embeds=embeds_to_send)
                     sent_items.add(item.id)
                     new_items_count += 1
                     
