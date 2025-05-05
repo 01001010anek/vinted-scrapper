@@ -1,81 +1,97 @@
-# Marketplace Tracker Discord Bot
+# Bot Discord do Śledzenia Vinted
 
-A Discord bot that scrapes marketplace websites (eBay, Amazon) for items matching user-defined criteria and sends notifications to Discord channels.
+Bot Discord, który automatycznie monitoruje przedmioty na platformie Vinted według określonych kryteriów i wysyła powiadomienia na kanał Discord.
 
-## Features
+## Funkcje
 
-- 🔍 Search for items on different marketplaces with custom keywords
-- 💰 Filter results by price range
-- 🔄 Automatically check for new items at regular intervals
-- 📊 Display rich item details in Discord embeds
-- 🎮 Simple command interface for configuration
+- 🔍 Wyszukiwanie przedmiotów na Vinted według słów kluczowych
+- 💰 Filtrowanie wyników według zakresu cenowego
+- 🔄 Automatyczne sprawdzanie nowych przedmiotów w regularnych odstępach czasu
+- 🖼️ Wyświetlanie wielu zdjęć przedmiotu
+- 👤 Informacje o sprzedającym wraz z oceną i danymi z profilu
+- 🌐 Dane o kraju pochodzenia przedmiotu
+- 📊 Wyświetlanie szczegółowych informacji o przedmiocie w Discord embeds
+- 🎮 Prosty interfejs komend do konfiguracji
 
-## Setup Instructions
+## Instrukcja Instalacji Lokalnej
 
-### Requirements
+### Wymagania
 
-- Python 3.7+
-- Discord Bot Token
-- Discord Server with a designated channel
+- Python 3.8+ (zalecane 3.11)
+- Token Bota Discord
+- Serwer Discord z wyznaczonym kanałem do powiadomień
 
-### Installation
+### Instalacja
 
-1. Clone this repository
-2. Install required packages:
+1. Sklonuj to repozytorium:
    ```
-   pip install discord.py requests beautifulsoup4 python-dotenv
+   git clone <URL_REPOZYTORIUM>
+   cd <NAZWA_FOLDERU>
    ```
-3. Create a `.env` file with your Discord token and channel ID:
+
+2. Zainstaluj wymagane pakiety:
    ```
-   DISCORD_TOKEN=your_discord_bot_token_here
-   CHANNEL_ID=your_discord_channel_id_here
+   pip install -r requirements.txt
    ```
-4. Run the bot:
+
+   Lub zainstaluj pakiety bezpośrednio:
+   ```
+   pip install discord.py requests beautifulsoup4 python-dotenv vinted-scraper
+   ```
+
+3. Utwórz plik `.env` z Twoim tokenem Discord i ID kanału:
+   ```
+   DISCORD_TOKEN=twoj_token_bota_discord
+   CHANNEL_ID=twoje_id_kanalu_discord
+   ```
+
+4. Uruchom bota:
    ```
    python main.py
    ```
 
-### Discord Bot Creation
+### Tworzenie Bota Discord
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a New Application
-3. Navigate to "Bot" section and create a bot
-4. Copy the token and paste it in your `.env` file
-5. Under "OAuth2 > URL Generator", select:
-   - Scopes: `bot`
-   - Bot Permissions: `Send Messages`, `Embed Links`, `Read Message History`
-6. Use the generated URL to invite the bot to your server
+1. Przejdź do [Discord Developer Portal](https://discord.com/developers/applications)
+2. Utwórz nową aplikację
+3. Przejdź do sekcji "Bot" i utwórz bota
+4. Skopiuj token i wklej go do pliku `.env`
+5. W sekcji "OAuth2 > URL Generator", wybierz:
+   - Zakres (Scopes): `bot`
+   - Uprawnienia bota: `Send Messages`, `Embed Links`, `Read Message History`, `Use Embedded Activities`
+6. Użyj wygenerowanego URL, aby zaprosić bota na swój serwer
+7. Znajdź ID kanału, na którym ma działać bot (Włącz tryb dewelopera w Discordzie, kliknij prawym przyciskiem myszy na kanał i wybierz "Kopiuj ID")
 
-## Usage Commands
+## Komendy
 
-- `!help` - Show list of available commands
-- `!set_keyword <keyword>` - Set search keyword
-- `!set_price <min> <max>` - Set price range in dollars
-- `!set_marketplace <name>` - Set marketplace (ebay, amazon)
-- `!set_interval <seconds>` - Set check interval (10-3600 seconds)
-- `!status` - Show current search configuration
-- `!clear` - Clear sent items history
+- `!help` - Pokaż listę dostępnych komend
+- `!set_keyword <słowo_kluczowe>` - Ustaw słowo kluczowe do wyszukiwania
+- `!set_price <min> <max>` - Ustaw zakres cenowy w PLN
+- `!set_interval <sekundy>` - Ustaw interwał sprawdzania (10-3600 sekund)
+- `!status` - Pokaż aktualną konfigurację wyszukiwania
+- `!clear` - Wyczyść historię wysłanych przedmiotów
 
-## Customization
+## Rozwiązywanie problemów
 
-### Adding New Marketplaces
+- **Problem z połączeniem do Vinted**: Bot używa zaawansowanych technik, aby obejść zabezpieczenia anti-scraping, ale jeśli Vinted zmieni swoją strukturę, może być konieczna aktualizacja kodu
+- **Wolne wyszukiwanie**: Dodaliśmy opóźnienia między zapytaniami, aby uniknąć blokady przez Vinted
+- **Brak niektórych informacji**: Nie wszystkie dane są dostępne przez API Vinted, więc bot próbuje pobrać dodatkowe informacje bezpośrednio ze strony
 
-To add support for additional marketplaces, extend the `marketplace_scraper.py` file:
+## Jak działa bot?
 
-1. Add the marketplace identifier in `_identify_marketplace()`
-2. Create a custom search URL builder in `_get_search_url()`
-3. Implement a results parser similar to `_parse_ebay_results()`
+Bot wykorzystuje dwa podejścia do pozyskiwania danych:
+1. Biblioteka `vinted-scraper` do pobierania podstawowych informacji o przedmiotach
+2. Bezpośrednie pobieranie dodatkowych danych ze stron Vinted dla pozyskania informacji o:
+   - Ocenach sprzedającego
+   - Kraju pochodzenia przedmiotu
+   - Dodatkowych zdjęciach przedmiotu
 
-## Limitations
+## Ograniczenia
 
-- Web scraping may break if the website structure changes
-- Some websites have anti-scraping measures that may block the bot
-- The bot respects rate limiting by adding delays between requests
+- Web scraping może przestać działać, jeśli struktura strony Vinted się zmieni
+- Vinted ma zabezpieczenia anti-scraping, które mogą blokować bota
+- Bot respektuje limity zapytań, dodając opóźnienia między nimi
 
-## Contributing
+## Licencja
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is open source and available under the MIT License.
+Ten projekt jest dostępny na licencji MIT License.

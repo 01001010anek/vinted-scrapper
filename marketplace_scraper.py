@@ -167,7 +167,9 @@ class MarketplaceScraper:
         elif self.marketplace == "amazon":
             return self._parse_amazon_results(soup, limit)
         elif self.marketplace == "vinted":
-            return self._parse_vinted_results(soup, limit)
+            results = self._parse_vinted_results(soup, limit)
+            logger.info(f"Found {len(results)} results from Vinted")
+            return results
         else:
             # Generic parser, would need to be customized
             logger.warning(f"No specific parser for {self.marketplace}, using generic parser")
@@ -347,71 +349,142 @@ class MarketplaceScraper:
             List of MarketplaceItem objects
         """
         items = []
-        # Select item cards from Vinted
-        results = soup.select('.feed-grid__item .feed-grid__item-content')
+        # Try multiple selectors for Vinted items since their HTML structure may change
+        selectors_to_try = [
+            '.feed-grid__item', 
+            '.catalog-grid__item',
+            '[data-testid="item-card"]',
+            '.feed-grid__item__content',
+            '.ItemBox_image__3BPYe',
+            '.ItemBox',
+            'a[href*="/item/"]',
+            'div[data-testid="ItemCard"]'
+        ]
+        
+        results = []
+        for selector in selectors_to_try:
+            results = soup.select(selector)
+            if results:
+                logger.info(f"Found {len(results)} items using selector: {selector}")
+                break
+                
+        # Debug the HTML structure if no results found with any selector
+        if not results:
+            logger.info("No items found with any selector, dumping HTML info for debugging")
+            logger.info(f"HTML length: {len(str(soup))}")
+            logger.info(f"HTML sample: {str(soup)[:500]}...")
+            
+            # Try to look for any links that might contain items
+            all_links = soup.select('a[href*="/item/"]')
+            logger.info(f"Found {len(all_links)} links containing '/item/'")
+            
+            # As a last resort, try to find anything with an image and price
+            results = soup.select('div:has(img):has(span:contains("zł"))')
         
         for result in results[:limit]:
             try:
-                # Extract item ID and URL
-                item_link = result.select_one('.feed-grid__item__link')
-                if not item_link:
-                    continue
-                
+                # Extract item URL - try multiple possible locations
                 item_url = ""
-                if item_link.has_attr('href'):
-                    href = item_link['href']
-                    if isinstance(href, str):
-                        item_url = href if href.startswith('http') else f"{self.base_url}{href}"
-                    
+                # Try direct href if the element is an anchor
+                if result.name == 'a' and result.has_attr('href'):
+                    item_url = result['href']
+                else:
+                    # Try to find a link within the element
+                    for link_selector in ['a', 'a[href*="/item/"]', 'a[data-testid="ItemCard-link"]']:
+                        link = result.select_one(link_selector)
+                        if link and link.has_attr('href'):
+                            item_url = link['href']
+                            break
+                
+                # Ensure URL is absolute
+                if item_url and not item_url.startswith('http'):
+                    item_url = f"{self.base_url}{item_url}" if item_url.startswith('/') else f"{self.base_url}/{item_url}"
+                
                 # Extract item ID from URL
                 item_id = ""
                 if item_url:
-                    # Typical Vinted URL format: /items/12345-user-item-title
-                    id_match = re.search(r'/items/(\d+)', item_url)
+                    # Try to extract ID from URL
+                    id_match = re.search(r'/items?/(\d+)', item_url)
                     if id_match:
                         item_id = id_match.group(1)
                     else:
+                        # Fallback: use hash of URL as ID
                         item_id = str(hash(item_url))
                 else:
-                    # Fallback ID
+                    # No URL found, use hash of HTML as ID
                     item_id = str(hash(str(result)))
                 
-                # Get title
-                title_elem = result.select_one('.feed-grid__item__title')
-                title = title_elem.text.strip() if title_elem else "Unknown Item"
+                # Try multiple selectors for title
+                title = "Unknown Item"
+                for title_selector in [
+                    '.ItemBox_title__1lTfU', 
+                    '.feed-grid__item__title', 
+                    '[data-testid="ItemCard-title"]',
+                    'h3', 
+                    '.item-title', 
+                    'div.item-information strong'
+                ]:
+                    title_elem = result.select_one(title_selector)
+                    if title_elem:
+                        title = title_elem.text.strip()
+                        break
                 
-                # Get price
-                price_elem = result.select_one('.feed-grid__item__price')
-                price_text = price_elem.text.strip() if price_elem else "0.00"
+                # Try multiple selectors for price
+                price_text = "0"
+                currency = "PLN"
+                for price_selector in [
+                    '.ItemBox_price__30Tty', 
+                    '.feed-grid__item__price', 
+                    '[data-testid="ItemCard-price"]', 
+                    '.item-price', 
+                    'span:contains("zł")'
+                ]:
+                    price_elem = result.select_one(price_selector)
+                    if price_elem:
+                        price_text = price_elem.text.strip()
+                        break
                 
-                # Extract numeric price and currency
+                # Extract price and currency
                 price_match = re.search(r'([^\d]*)(\d+[.,]?\d*)', price_text)
                 if price_match:
                     currency = price_match.group(1).strip() or "PLN"
                     price = price_match.group(2).replace(',', '.')
                 else:
-                    currency = "PLN"
-                    price = "0.00"
+                    price = "0"
                 
-                # Get brand info
-                brand_elem = result.select_one('.feed-grid__item__brand')
-                brand_title = brand_elem.text.strip() if brand_elem else None
+                # Try multiple selectors for brand
+                brand_title = None
+                for brand_selector in [
+                    '.ItemBox_brand__3lVVR', 
+                    '.feed-grid__item__brand', 
+                    '[data-testid="ItemCard-brand"]', 
+                    '.item-brand'
+                ]:
+                    brand_elem = result.select_one(brand_selector)
+                    if brand_elem:
+                        brand_title = brand_elem.text.strip()
+                        break
                 
-                # Get image URL
-                img_elem = result.select_one('img.feed-grid__item__photo')
+                # Try multiple selectors for image
                 image_url = None
-                if img_elem and img_elem.has_attr('src'):
-                    src = img_elem['src']
-                    if isinstance(src, str):
-                        image_url = src
+                for img_selector in ['img', '.item-image img', '[data-testid="ItemCard-img"]', '.feed-grid__item__photo']:
+                    img_elem = result.select_one(img_selector)
+                    if img_elem and img_elem.has_attr('src'):
+                        image_url = img_elem['src']
+                        if image_url and isinstance(image_url, str):
+                            break
                 
-                # Get user info if available
+                # Try to find seller info
+                seller = None
+                location = None
                 user = None
-                user_elem = result.select_one('.feed-grid__item__user')
-                if user_elem:
-                    user_name = user_elem.text.strip()
-                    user_id = str(hash(user_name))  # Simple hash as ID
-                    user = User(login=user_name, id=user_id)
+                for user_selector in ['.ItemBox_username__14ZwG', '.feed-grid__item__user', '[data-testid="ItemCard-user"]', '.item-user']:
+                    user_elem = result.select_one(user_selector)
+                    if user_elem:
+                        seller = user_elem.text.strip()
+                        user_id = str(hash(seller))
+                        user = User(login=seller, id=user_id)
+                        break
                 
                 # Create the item object
                 item = MarketplaceItem(
@@ -421,9 +494,10 @@ class MarketplaceScraper:
                     currency=currency,
                     url=item_url,
                     condition="Used",  # Most Vinted items are used
+                    seller=seller,
+                    location=location,
                     brand_title=brand_title,
-                    image_url=image_url,
-                    user=user
+                    image_url=image_url
                 )
                 
                 items.append(item)
