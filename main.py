@@ -265,36 +265,10 @@ async def check_new_items(channel):
                         elif country_name == "Polska":
                             country_flag = "🇵🇱"
                         
-                        embed.add_field(name="Kraj", value=f"{country_flag} {country_name}", inline=True)
+                        embed.add_field(name="Prawdopodobnie", value=f"{country_flag}", inline=True)
                         
-                        # Przygotuj informacje o ocenach użytkownika
-                        rating_text = "Oceny: Brak dostępnych danych"
-                        
-                        # Sprawdź, czy mamy ocenę użytkownika
-                        if hasattr(item.user, 'rating') and item.user.rating:
-                            try:
-                                # Konwertuj rating na liczbę i wyświetl gwiazdki
-                                rating_value = float(str(item.user.rating).replace(',', '.'))
-                                rating_stars = "★" * int(rating_value)
-                                rating_text = f"⭐ Ocena: {rating_value} {rating_stars}"
-                            except (ValueError, TypeError):
-                                # Jeśli konwersja się nie powiedzie, wyświetl oryginalny tekst
-                                rating_text = f"⭐ Ocena: {item.user.rating}"
-                        
-                        # Dodaj informacje o liczbie pozytywnych/negatywnych opinii, jeśli są dostępne
-                        feedback_info = []
-                        
-                        if hasattr(item.user, 'positive_feedback_count') and item.user.positive_feedback_count:
-                            feedback_info.append(f"👍 Pozytywne: {item.user.positive_feedback_count}")
-                        
-                        if hasattr(item.user, 'negative_feedback_count') and item.user.negative_feedback_count:
-                            feedback_info.append(f"👎 Negatywne: {item.user.negative_feedback_count}")
-                        
-                        if feedback_info:
-                            rating_text += "\n" + " | ".join(feedback_info)
-                        
-                        # Dodaj sprzedawcę z linkiem do profilu
-                        seller_value = f"👤 [{item.user.login}]({item.user.profile_url})\n{rating_text}"
+                        # Dodaj sprzedawcę z linkiem do profilu, bez ocen
+                        seller_value = f"👤 [{item.user.login}]({item.user.profile_url})"
                         embed.add_field(name="Sprzedawca", value=seller_value, inline=False)
                         
                         # Dodaj zdjęcie użytkownika jako miniaturkę (thumbnail)
@@ -314,13 +288,8 @@ async def check_new_items(channel):
                                 flag_code_points = [ord(c) + 127397 for c in country_code]
                                 country_flag = "".join([chr(cp) for cp in flag_code_points])
                             
-                            # Pobierz właściwą nazwę kraju z obiektu
-                            if hasattr(item, 'country') and item.country:
-                                country_name = item.country
-                            else:
-                                country_name = getattr(item, 'country_title', "Polska") or "Polska"
-                                
-                            embed.add_field(name="Kraj", value=f"{country_flag} {country_name}", inline=True)
+                            # Wyświetl tylko flagę
+                            embed.add_field(name="Prawdopodobnie", value=f"{country_flag}", inline=True)
                     
                     # Dodaj informacje o stanie przedmiotu
                     if hasattr(item, 'condition') and item.condition:
