@@ -163,7 +163,6 @@ async def show_help(channel):
     
     commands = [
         ("!help", "Pokaż tę wiadomość pomocy"),
-        ("!setup", "Uruchom interaktywny panel konfiguracyjny"),
         ("!set_keyword <słowo>", "Ustaw słowo kluczowe do wyszukiwania"),
         ("!set_price <min> <max>", "Ustaw zakres cenowy w PLN"),
         ("!set_interval <sekundy>", "Ustaw interwał sprawdzania (10-3600 sekund)"),
@@ -175,117 +174,6 @@ async def show_help(channel):
         help_embed.add_field(name=cmd, value=desc, inline=False)
         
     await channel.send(embed=help_embed)
-    
-async def show_setup_panel(channel):
-    """
-    Display interactive setup panel for bot configuration
-    """
-    setup_embed = discord.Embed(
-        title="⚙️ Konfiguracja Bota Vinted",
-        description="Interaktywny panel konfiguracyjny. Wybierz jedną z opcji poniżej:",
-        color=0x3498db
-    )
-    
-    # Aktualne wartości
-    current_config = (
-        f"**Słowo kluczowe:** {search_config['keyword']}\n"
-        f"**Zakres cen:** {search_config['min_price']} - {search_config['max_price']} PLN\n"
-        f"**Interwał:** {search_config['check_interval']} sekund"
-    )
-    
-    setup_embed.add_field(name="Aktualna konfiguracja", value=current_config, inline=False)
-    
-    # Instrukcje
-    instructions = (
-        "**1️⃣ Ustaw słowo kluczowe** - Wpisz: `keyword: <słowo>`\n"
-        "**2️⃣ Ustaw zakres cen** - Wpisz: `price: <min> <max>`\n"
-        "**3️⃣ Ustaw interwał** - Wpisz: `interval: <sekundy>`\n"
-        "**4️⃣ Zakończ konfigurację** - Wpisz: `gotowe`"
-    )
-    
-    setup_embed.add_field(name="Dostępne opcje", value=instructions, inline=False)
-    setup_embed.set_footer(text="Panel konfiguracyjny wygaśnie po 3 minutach bezczynności.")
-    
-    # Wysyłamy panel konfiguracyjny
-    await channel.send(embed=setup_embed)
-    
-    # Oczekujemy na odpowiedź użytkownika
-    def check(m):
-        return m.channel == channel and not m.author.bot
-    
-    # Obsługujemy interakcję z użytkownikiem (z limitem czasu 3 minuty)
-    try:
-        while True:
-            user_response = await client.wait_for('message', check=check, timeout=180)
-            content = user_response.content.lower().strip()
-            
-            # Zakończenie konfiguracji
-            if content == 'gotowe':
-                break
-                
-            # Ustawienie słowa kluczowego
-            elif content.startswith('keyword:'):
-                keyword = content[len('keyword:'):].strip()
-                if keyword:
-                    search_config["keyword"] = keyword
-                    await channel.send(f"🔑 Słowo kluczowe ustawiono na: **{keyword}**")
-                else:
-                    await channel.send("❌ Podaj prawidłowe słowo kluczowe.")
-            
-            # Ustawienie zakresu cen
-            elif content.startswith('price:'):
-                try:
-                    parts = content[len('price:'):].strip().split()
-                    if len(parts) == 2:
-                        min_price = int(parts[0])
-                        max_price = int(parts[1])
-                        if min_price >= 0 and max_price > min_price:
-                            search_config["min_price"] = min_price
-                            search_config["max_price"] = max_price
-                            await channel.send(f"💰 Zakres cenowy ustawiony na: **{min_price} - {max_price} PLN**")
-                        else:
-                            await channel.send("❌ Minimalny zakres cenowy musi być większy lub równy 0, a maksymalny musi być większy od minimalnego.")
-                    else:
-                        await channel.send("❌ Podaj prawidłowy zakres cenowy: `price: <min> <max>`")
-                except ValueError:
-                    await channel.send("❌ Ceny muszą być liczbami całkowitymi.")
-            
-            # Ustawienie interwału sprawdzania
-            elif content.startswith('interval:'):
-                try:
-                    interval = int(content[len('interval:'):].strip())
-                    if 10 <= interval <= 3600:
-                        search_config["check_interval"] = interval
-                        await channel.send(f"⏱️ Interwał sprawdzania ustawiony na: **{interval} sekund**")
-                    else:
-                        await channel.send("❌ Interwał musi być pomiędzy 10 a 3600 sekund (1 godzina).")
-                except ValueError:
-                    await channel.send("❌ Interwał musi być liczbą całkowitą.")
-            
-            # Nierozpoznana komenda
-            else:
-                await channel.send("❓ Nierozpoznana komenda. Skorzystaj z instrukcji powyżej.")
-        
-        # Podsumowanie konfiguracji
-        summary_embed = discord.Embed(
-            title="✅ Konfiguracja zakończona",
-            description="Aktualne ustawienia:",
-            color=0x2ecc71
-        )
-        
-        final_config = (
-            f"**Słowo kluczowe:** {search_config['keyword']}\n"
-            f"**Zakres cen:** {search_config['min_price']} - {search_config['max_price']} PLN\n"
-            f"**Interwał:** {search_config['check_interval']} sekund"
-        )
-        
-        summary_embed.add_field(name="Konfiguracja", value=final_config, inline=False)
-        summary_embed.set_footer(text="Bot będzie sprawdzał nowe przedmioty zgodnie z ustawionym interwałem.")
-        
-        await channel.send(embed=summary_embed)
-        
-    except asyncio.TimeoutError:
-        await channel.send("⏱️ Konfiguracja została zakończona z powodu przekroczenia limitu czasu (3 minuty).")
 
 async def show_status(channel):
     """
@@ -437,29 +325,25 @@ async def check_new_items(channel):
                             main_image_url = first_photo
                             embed.set_image(url=main_image_url)
                     
-                    # Zbierz wszystkie zdjęcia do jednej wiadomości (maksymalnie 5 zdjęć łącznie)
-                    # Tworzymy jeden embed z głównym zdjęciem i z przyciskami do pozostałych zdjęć
-                    
-                    # Zbierz listę wszystkich zdjęć (główne + dodatkowe)
-                    all_photos = []
-                    
-                    # Dodaj główne zdjęcie na początek listy
-                    if main_image_url:
-                        all_photos.append(main_image_url)
-                    
-                    # Dodaj dodatkowe zdjęcia (maksymalnie 4 dodatkowe, czyli łącznie 5)
-                    if hasattr(item, "photos") and item.photos and len(item.photos) > 1:
-                        for photo_url in item.photos[1:5]:  # Max 4 dodatkowe zdjęcia + 1 główne = 5 łącznie
-                            if isinstance(photo_url, str) and photo_url.startswith("http"):
-                                all_photos.append(photo_url)
-                    
-                    # Jeśli mamy zdjęcia, dodaj je jako linki w embedzie
-                    if len(all_photos) > 1:  # Jeśli mamy więcej niż jedno zdjęcie
-                        photo_links = "\n".join([f"[Zdjęcie {i+1}]({url})" for i, url in enumerate(all_photos)])
-                        embed.add_field(name="📷 Więcej zdjęć", value=photo_links, inline=False)
-                        
                     # Wyślij główny embed
                     await channel.send(embed=embed)
+                    
+                    # Wyślij dodatkowe zdjęcia jako osobne embedy (maksymalnie 5 zdjęć)
+                    additional_photos = []
+                    if hasattr(item, "photos") and item.photos and len(item.photos) > 1:
+                        # Pomiń pierwsze zdjęcie, bo już zostało użyte jako główne
+                        for i, photo_url in enumerate(item.photos[1:6], 1):  # Max 5 dodatkowych zdjęć
+                            if isinstance(photo_url, str) and photo_url.startswith("http"):
+                                additional_photos.append(photo_url)
+                    
+                    # Jeśli mamy dodatkowe zdjęcia, wyślij je jako osobne embedy
+                    for i, photo_url in enumerate(additional_photos):
+                        photo_embed = discord.Embed()
+                        photo_embed.set_image(url=photo_url)
+                        photo_embed.set_footer(text=f"Zdjęcie {i+2}/{len(additional_photos)+1} | ID: {item.id}")
+                        await channel.send(embed=photo_embed)
+                        # Krótka pauza aby uniknąć limitowania przez Discord
+                        await asyncio.sleep(0.5)
                     sent_items.add(item.id)
                     new_items_count += 1
                     
