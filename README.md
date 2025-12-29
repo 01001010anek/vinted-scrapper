@@ -12,7 +12,7 @@ Bot, który automatycznie monitoruje przedmioty na platformie Vinted według okr
 - 🌐 Dane o kraju pochodzenia przedmiotu (czasami działa a czasami nie)
 - 📊 Prosta konfihuracja
 
-## Instrukcja Instalacji Lokalnej
+## Jak zainstalować?
 
 ### Wymagania
 
@@ -68,12 +68,6 @@ Bot, który automatycznie monitoruje przedmioty na platformie Vinted według okr
 - `!set_interval <sekundy>` - Ustaw interwał sprawdzania (10-3600 sekund)
 - `!status` - Pokaż aktualną konfigurację wyszukiwania
 - `!clear` - Wyczyść historię wysłanych przedmiotów
-
-## Rozwiązywanie problemów
-
-- **Problem z połączeniem do Vinted**: Bot używa zaawansowanych technik, aby obejść zabezpieczenia anti-scraping, ale jeśli Vinted zmieni swoją strukturę, może być konieczna aktualizacja kodu
-- **Wolne wyszukiwanie**: Dodaliśmy opóźnienia między zapytaniami, aby uniknąć blokady przez Vinted
-- **Brak niektórych informacji**
 
 ## Jak działa bot?
 
